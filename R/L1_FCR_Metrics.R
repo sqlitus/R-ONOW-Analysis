@@ -88,6 +88,11 @@ inc_data_FCR <- inc_data_FCR %>% mutate(RCA_ticket = case_when(str_detect(`Short
                                         FCR = case_when(FCR_phone == 1 | FCR_portal == 1 ~ 1)
                         )
                 
+# next steps:
+## change FCR RCA criteria: it won't be in L1 groups...
+
+
+
 
 # output
 write.csv(inc_data_FCR, na = "", row.names = FALSE, "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\L1 metrics\\L1_Analys_Metrics.csv")
