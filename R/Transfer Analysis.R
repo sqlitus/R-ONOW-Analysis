@@ -33,10 +33,14 @@ out <- out %>% mutate(t_or_r = case_when(next_team_assign_time < Resolved | (!is
                                          next_team_assign_time > Resolved | (is.na(next_team_assign_time) & !is.na(Resolved))
                                          ~ "Resolved",
                                          is.na(next_team_assign_time) & is.na(Resolved)
-                                         ~ "Still assigned"
+                                         ~ "Still open"
                                          ))
 out <- out %>% arrange(Number, Start)
 out <- out %>% filter(Value == "Global Help Desk")
+out <- out %>% mutate(Transferred_to = case_when(str_detect(next_team, "(?i)Regional IT") ~ next_team,
+                                                 TRUE ~ "Other"),
+                      real_transfer = case_when(End <= Resolved ~ "real team transfer",
+                                                End > Resolved ~ "end after resolved"))  # this = nearly ALL resolved tickets only
 
 write.csv(out, na="", row.names=FALSE, "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\INC History\\GHD Transfer History\\ghdt.csv")
 
