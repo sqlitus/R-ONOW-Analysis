@@ -37,13 +37,18 @@ out <- out %>% mutate(t_or_r = case_when(next_team_assign_time < Resolved | (!is
                                          ))
 out <- out %>% arrange(Number, Start)
 out <- out %>% filter(Value == "Global Help Desk")
-out <- out %>% mutate(Transferred_to = case_when(str_detect(next_team, "(?i)Regional IT") ~ next_team,
+out <- out %>% mutate(Transferred_to = case_when(str_detect(next_team, "(?i)Regional IT") | 
+                                                   str_detect(next_team, "(?i)msi shared") ~ next_team,
                                                  TRUE ~ "Other"),
-                      real_transfer = case_when(End <= Resolved ~ "real team transfer",
-                                                End > Resolved ~ "end after resolved"))  # this = nearly ALL resolved tickets only
+                      Handled = case_when(t_or_r == "Transferred" & 
+                                            (str_detect(next_team, "(?i)Regional IT") | str_detect(next_team, "(?i)msi shared"))
+                                          ~ paste0("Transferred - ", next_team),
+                                          t_or_r == "Transferred" ~ paste0("Transferred - Other"),
+                                          TRUE ~ t_or_r))
 
+writeLines(paste("Exporting file now at", Sys.time(),"\n Elapsed time:", Sys.time()-start_time))
 write.csv(out, na="", row.names=FALSE, "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\INC History\\GHD Transfer History\\ghdt.csv")
-
+writeLines(paste0("Start time: ", start_time, "\nEnd time: ", Sys.time(), "\nElapsed time: ", Sys.time() - start_time))
 
 
 # # flash <- out %>% filter(Start == End)

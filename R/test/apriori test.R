@@ -1,7 +1,7 @@
 # apriori test category data
 
 
-# Support: (transactions that include X) / (all transactions)
+# Support: (transactions that include lhs+rhs) / (all transactions)
 # supp(xUy) = union of item lists X and Y. == P(Ex ∩ Ey) = probability of X and Y appearing together.
 # e.g. 4 of 7 rows contain L1. support = 4/7. (.57)
 # e.g. 4 of 7 rows contain Lamar. support = 4/7 (.57)
@@ -9,17 +9,13 @@
 
 
 # Confidence: supp(xUy) / supp(x). AKA P(Y|X) "the probability of Y occurring, given X has occurred AKA The Conditional prob of Y.
-# e.g. 4 of 7 rows contain Lamar. support = 4/7 (.57). confidence is .57 (same as support)
-# e.g. 4 rows contain L1, and 3 of those contain Lamar. L1 => Lamar is .75 confidence
-# e.g. 4 rows contain L1, and 1 of those contain Scanner. L1 => Scanner is .25 confidence
+# e.g. 4 rows contain L1, and 3 of those rows contain Printer. L1 => Printer is .75 confidence
+# e.g. only 3 rows contain Printer, and all 3 contain L1. Printer => L1 is 1 confidence (100%)
 # e.g. 3 rows contain L1 & Printer. 2 of those also contain Lamar. L1+Printer => Lamar is .66 confidence
-# e.g. 3 rows contain Printer, and all 3 contain L1. Printer => L1 is 1 confidence (100%)
-# L1 => Printer is .75 confidence
-# Printer => L1 is 1.0 confidence 
 
 
-# Lift: confidence / supp(Y)
-# e.g. L1 => Lamar might happen 75% of the time, but how muchg does Lamar happen anyways? More or less than when L1 happens?
+# Lift: confidence(x=>y) / supp(Y)
+# e.g. L1 => Lamar has 75% confidence, and Lamar happens .57 of the time anyways, so L1 is lifting Lamar a bit (1.33 times normal)
 
 
 library(arules)
@@ -36,25 +32,35 @@ trans <- z[,-1]
 
 # analysis 1: default
 rules <- apriori(data = trans,
-                 parameter = list(support = .1, minlen = 1, maxlen = 10, ext = FALSE),
+                 parameter = list(support = .1, minlen = 1, maxlen = 10, ext = FALSE, confidence=.8, maxtime=5), # default 5 secs
                  appearance = NULL,
                  control = NULL)
+rules <- apriori(data = trans)  # should be same as above
 inspect(sort(rules, by = "lift")) %>% View()  # view only works on short dfs here
 
 # analysis 2: show everything
 rules <- apriori(data = trans,
-                 parameter = list(minlen = 1, supp = 0, conf = 0)
+                 parameter = list(minlen = 1, supp = 0, conf = 0, ext = TRUE)  # arem adds measure but cuts off results?
                  # appearance = list(lhs = c("team=L1", "cat=Printer", "store=Lamar"))
-                 # appearance = list(rhs = c("team=L1"), default = "lhs"),  # this will filter out too many somehow
-                 # control = list(verbose=F)
+                 # , appearance = list(rhs = c("team=L1"))
                  )
-inspect(sort(rules, by = "confidence"))
+
+# analysis 3: custom
+rules <- apriori(trans, parameter = list(supp = .01, conf = 0, ext = TRUE))
 
 # convert to dataframe
 test <- data.frame(lhs = labels(lhs(rules)), rhs = labels(rhs(rules)), rules@quality) %>% 
-  filter(support != 0) %>%
-  arrange(-confidence, -support)
+  arrange(desc(confidence), desc(support)) 
 
+
+
+
+
+# misc info functions
+rules@lhs
+rules@rhs
+rules@quality
+rules@info
 
 
 

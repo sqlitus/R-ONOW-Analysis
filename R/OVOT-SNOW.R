@@ -18,6 +18,8 @@ for (i in 1:length(state_history_files)){
   state_history <- bind_rows(state_history, data)
 }
 state_history <- state_history %>% distinct()
+filter_out <- state_history %>% filter(Start == End)
+state_history <- state_history %>% anti_join(filter_out)
 
 # merge assignment history
 team_history <- data_frame()
@@ -27,6 +29,8 @@ for (i in 1:length(team_history_files)){
   team_history <- bind_rows(team_history, data)
 }
 team_history <- team_history %>% distinct()
+filter_out <- team_history %>% filter(Start == End)
+team_history <- team_history %>% anti_join(filter_out)
 
 # set TZ of imported times to CST
 state_history[c('Start','End')] <- force_tz(state_history[c('Start','End')], tzone = 'US/Central')
@@ -61,9 +65,5 @@ ovot <- ovot %>% distinct()
 out <- ovot %>% select(Number, datetime, Status=Value.x, Team=Value.y)
 writeLines(paste("Exporting file now at", Sys.time(),"\n Elapsed time:", Sys.time()-start_time))
 write.csv(out, na = "", row.names = FALSE, paste0(path, "\\ovot.csv"))
-
-# timing
 writeLines(paste0("Start time: ", start_time, "\nEnd time: ", Sys.time(), "\nElapsed time: ", Sys.time() - start_time))
 
-
-## add check for proper data size...
