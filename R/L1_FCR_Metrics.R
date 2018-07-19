@@ -95,4 +95,4 @@ inc_data_FCR <- inc_data_FCR %>% mutate(RCA_ticket = case_when(str_detect(`Short
 
 
 # output
-write.csv(inc_data_FCR, na = "", row.names = FALSE, "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\L1 metrics\\L1_Analys_Metrics.csv")
+write.csv(inc_data_FCR, na = "", row.names = FALSE, "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\L1 metrics\\L1_Analyst_Metrics.csv")

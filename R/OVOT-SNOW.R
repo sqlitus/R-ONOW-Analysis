@@ -61,8 +61,28 @@ for (i in 1:nrow(calendar)){
 }
 ovot <- ovot %>% distinct()
 
+
+
 # prune & output file
 out <- ovot %>% select(Number, datetime, Status=Value.x, Team=Value.y)
+
+## ADD: IMPORT & MERGE TICKET DATA, LEFT JOIN FOR CREATED / PRIORITY INFO
+## somehow adding duplicates?
+inc_list_files <- list.files(path, "(?i)all_inc_list", full.names = TRUE)
+all_incidents <- data_frame()
+for (i in 1:length(inc_list_files)){
+  data <- readxl::read_excel(inc_list_files[i])
+  all_incidents <- bind_rows(all_incidents, data)
+}
+all_incidents <- all_incidents %>% distinct()
+all_incidents[c('Created','Resolved')] <- force_tz(all_incidents[c('Created','Resolved')], tzone = 'US/Central')
+# inc_list <- readxl::read_excel("\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\incident.xlsx")
+# inc_list[c('Created','Resolved')] <- force_tz(inc_list[c('Created','Resolved')], tzone = 'US/Central')
+
+out <- out %>% left_join(select(all_incidents, Number, Priority, Created), by = "Number") %>% distinct()
+
+
+# output
 writeLines(paste("Exporting file now at", Sys.time(),"\n Elapsed time:", Sys.time()-start_time))
 write.csv(out, na = "", row.names = FALSE, paste0(path, "\\ovot.csv"))
 writeLines(paste0("Start time: ", start_time, "\nEnd time: ", Sys.time(), "\nElapsed time: ", Sys.time() - start_time))
