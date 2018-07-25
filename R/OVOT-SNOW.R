@@ -17,7 +17,7 @@ for (i in 1:length(state_history_files)){
   # data$import_sheet <- str_extract(state_history_files[i], "(?<=/).*") # positive lookbehind
   state_history <- bind_rows(state_history, data)
 }
-state_history <- state_history %>% distinct()
+state_history <- state_history %>% select(Number, Field, Value, Start, End) %>% distinct()
 filter_out <- state_history %>% filter(Start == End)
 state_history <- state_history %>% anti_join(filter_out)
 
@@ -28,7 +28,7 @@ for (i in 1:length(team_history_files)){
   # data$import_sheet <- str_extract(team_history_files[i], "(?<=/).*") # positive lookbehind
   team_history <- bind_rows(team_history, data)
 }
-team_history <- team_history %>% distinct()
+team_history <- team_history %>% select(Number, Field, Value, Start, End) %>% distinct()
 filter_out <- team_history %>% filter(Start == End)
 team_history <- team_history %>% anti_join(filter_out)
 
@@ -66,20 +66,21 @@ ovot <- ovot %>% distinct()
 # prune & output file
 out <- ovot %>% select(Number, datetime, Status=Value.x, Team=Value.y)
 
-## ADD: IMPORT & MERGE TICKET DATA, LEFT JOIN FOR CREATED / PRIORITY INFO
-## somehow adding duplicates?
-inc_list_files <- list.files(path, "(?i)all_inc_list", full.names = TRUE)
-all_incidents <- data_frame()
-for (i in 1:length(inc_list_files)){
-  data <- readxl::read_excel(inc_list_files[i])
-  all_incidents <- bind_rows(all_incidents, data)
-}
-all_incidents <- all_incidents %>% distinct()
-all_incidents[c('Created','Resolved')] <- force_tz(all_incidents[c('Created','Resolved')], tzone = 'US/Central')
-# inc_list <- readxl::read_excel("\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\incident.xlsx")
-# inc_list[c('Created','Resolved')] <- force_tz(inc_list[c('Created','Resolved')], tzone = 'US/Central')
-
-out <- out %>% left_join(select(all_incidents, Number, Priority, Created), by = "Number") %>% distinct()
+# ## ADD: data for getting historical aging matrix
+# ## IMPORT & MERGE TICKET DATA, LEFT JOIN FOR CREATED / PRIORITY INFO
+# ## somehow adding duplicates?
+# inc_list_files <- list.files(path, "(?i)all inc list", full.names = TRUE)
+# all_incidents <- data_frame()
+# for (i in 1:length(inc_list_files)){
+#   data <- read.csv(inc_list_files[i])
+#   all_incidents <- bind_rows(all_incidents, data)
+# }
+# all_incidents <- all_incidents %>% distinct()
+# all_incidents[c('Created','Resolved')] <- force_tz(all_incidents[c('Created','Resolved')], tzone = 'US/Central')
+# # inc_list <- readxl::read_excel("\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\incident.xlsx")
+# # inc_list[c('Created','Resolved')] <- force_tz(inc_list[c('Created','Resolved')], tzone = 'US/Central')
+# 
+# out <- out %>% left_join(select(all_incidents, Number, Priority, Created), by = "Number") %>% distinct()
 
 
 # output
