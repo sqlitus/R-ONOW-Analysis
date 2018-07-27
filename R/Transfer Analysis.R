@@ -20,7 +20,8 @@ team_history <- team_history %>% distinct(Number, Field, Value, Start, End, Reso
 # prune assignment history. remove assignments with same start & end dates, and reassignments to same team.
 # should represent true transfer history between teams
 out <- team_history
-out <- out %>% filter(State != "Canceled", Start != End)  # filtered out 'flash' reassignments to same team
+filter_out <- out %>% filter(State == 'Canceled' | Start == End)
+out <- out %>% anti_join(filter_out)  # filtered out 'flash' reassignments to same team
 out <- out %>% group_by(Number) %>% mutate(prev_team = lag(Value, order_by = Start), 
                                            next_team = lead(Value, order_by = Start))
 out <- out %>% filter(prev_team != Value | is.na(prev_team))  # include nulls 
@@ -49,17 +50,4 @@ out <- out %>% mutate(Transferred_to = case_when(str_detect(next_team, "(?i)Regi
 writeLines(paste("Exporting file now at", Sys.time(),"\n Elapsed time:", Sys.time()-start_time))
 write.csv(out, na="", row.names=FALSE, "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\INC History\\GHD Transfer History\\ghdt.csv")
 writeLines(paste0("Start time: ", start_time, "\nEnd time: ", Sys.time(), "\nElapsed time: ", Sys.time() - start_time))
-
-
-# # flash <- out %>% filter(Start == End)
-# # mult <- out %>% filter(n() > 1)
-# # test <- out %>% filter(next_team == Value & !is.na(prev_team))
-# # test2 <- out %>% filter(Number %in% test$Number & Number %in% mult$Number)
-# out %>% filter(Number %in% c("INC0030507", "INC0030592", "INC0018115", "INC0011140")) %>% View()
-# 
-# # checking flash reassingments to diff team ( don't filter start != end.)
-# flash <- out %>% filter(Start == End & Value != next_team) %>% select(Number) # checking flash assigns to diff team
-# out %>% filter(Number %in% flash$Number) %>% arrange(Number, Start) %>% View()
-# out %>% filter(Number %in% c("INC0015184", "INC0010560", "INC0016940")) %>% View() 
-
 
