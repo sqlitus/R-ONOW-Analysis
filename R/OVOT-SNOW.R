@@ -1,5 +1,5 @@
-# OVOT HISTORICAL BACKLOG REPORT #
-# Using Incident Assignment History & State History
+# Open Volume Over Time - HISTORICAL BACKLOG REPORT #
+# Using Incident Team Assignment History & State History to find open queue volumes
 
 library(tidyverse); library(lubridate)
 start_time <- Sys.time()
@@ -37,7 +37,7 @@ state_history[c('Start','End')] <- force_tz(state_history[c('Start','End')], tzo
 team_history[c('Start','End')] <- force_tz(team_history[c('Start','End')], tzone = 'US/Central')
 
 # calendar table; datetime @ 8am
-calendar_start <- date("2018-02-22")
+calendar_start <- (Sys.Date() - (7*14)) + ( 1 - as.integer(format(Sys.Date(), format = "%u"))) # last 14 weeks
 calendar <- data_frame(
   date = seq.Date(from = calendar_start, to = today(), by = "days"),
   datetime = seq.POSIXt(from = as.POSIXct(paste(calendar_start, "08"), format = "%Y-%m-%d %H"), 
