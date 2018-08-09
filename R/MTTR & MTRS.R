@@ -69,7 +69,7 @@ all_history <- all_history %>% arrange(Number, Start) %>% group_by(Number) %>%
          prev_time = lag(Start, order_by = Start),
          prev_action = lag(Field, order_by = Start),
          response_time = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' ~ 
-                                     difftime(Start, prev_time, units='mins')))
+                                     difftime(Start, prev_time, units='hours')))
 
 # get first analyst responses for teams L1/L2/L3/aloha/payments ----
 all_history <- all_history %>% left_join(first_L1) %>% left_join(first_L2) %>% left_join(first_L3) %>%
@@ -83,24 +83,33 @@ all_history <- all_history %>% arrange(Number, Start) %>% group_by(Number) %>%
          payments_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_payments == 1) ~ 1))
 
 first_L1_response <- all_history %>% filter(L1_response == 1) %>% 
-  select(Number, L1_Response_Analyst = Value, L1_Response_Time = response_time, L1_Time_of_Response = Start)
+  mutate(L1_Time_of_Response_Date = date(Start)) %>%
+  select(Number, L1_Response_Analyst = Value, L1_Response_Time = response_time, L1_Time_of_Response = Start, L1_Time_of_Response_Date)
 first_L2_response <- all_history %>% filter(L2_response == 1) %>%
-  select(Number, L2_Response_Analyst = Value, L2_Response_Time = response_time, L2_Time_of_Response = Start)
+  mutate(L2_Time_of_Response_Date = date(Start)) %>%
+  select(Number, L2_Response_Analyst = Value, L2_Response_Time = response_time, L2_Time_of_Response = Start, L2_Time_of_Response_Date)
 first_L3_response <- all_history %>% filter(L3_response == 1) %>%
-  select(Number, L3_Response_Analyst = Value, L3_Response_Time = response_time, L3_Time_of_Response = Start)
+  mutate(L3_Time_of_Response_Date = date(Start)) %>%
+  select(Number, L3_Response_Analyst = Value, L3_Response_Time = response_time, L3_Time_of_Response = Start, L3_Time_of_Response_Date)
 first_aloha_response <- all_history %>% filter(aloha_response == 1) %>%
-  select(Number, aloha_Response_Analyst = Value, aloha_Response_Time = response_time, aloha_Time_of_Response = Start)
+  mutate(aloha_Time_of_Response_Date = date(Start)) %>%
+  select(Number, aloha_Response_Analyst = Value, aloha_Response_Time = response_time, aloha_Time_of_Response = Start, aloha_Time_of_Response_Date)
 first_payments_response <- all_history %>% filter(payments_response == 1) %>%
-  select(Number, payments_Response_Analyst = Value, payments_Response_Time = response_time, payments_Time_of_Response = Start)
+  mutate(payments_Time_of_Response_Date = date(Start)) %>%
+  select(Number, payments_Response_Analyst = Value, payments_Response_Time = response_time, payments_Time_of_Response = Start, payments_Time_of_Response_Date)
 
 # get start time of last assigned team for time-to-restore-service by assignment time (instead of creation)
 # (reopened tickets will still have old resolve time, and thus incorrectly show a TTRS)
 last_team_start <- team_history %>% group_by(Number) %>% filter(Start == max(Start)) %>%
-  mutate(team_time_to_restore_service = difftime(Resolved, Start, units = 'mins')) %>%
-  select(Number, last_team = Value, last_team_start = Start, team_time_to_restore_service)
+  mutate(last_team_start_date = date(Start),
+         team_TRS_hours = difftime(Resolved, Start, units = 'hours')) %>%
+  select(Number, last_team = Value, last_team_start = Start, last_team_start_date, team_TRS_hours)
 
 # import incident list. join aggregation data to incident list ----
 OnePOS_Incidents_Import <- readxl::read_excel(path = "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\incident.xlsx")
+
+
+# to add: filter by quarter
 out <- OnePOS_Incidents_Import %>% 
   left_join(first_team) %>%
   left_join(L1_assigns) %>%
@@ -110,6 +119,7 @@ out <- OnePOS_Incidents_Import %>%
 if (nrow(out) == nrow(OnePOS_Incidents_Import)) "data is good" else "not good"  # check for duplicates/problems
 
 # export extended incident list ----
+writeLines(paste("Exporting file now at", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
 writexl::write_xlsx(x = out, path = "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\extended_metrics.xlsx")
 
 
