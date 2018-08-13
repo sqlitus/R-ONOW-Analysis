@@ -29,7 +29,7 @@ out <- out %>% group_by(Number) %>% mutate(prev_team = lag(Value, order_by = Sta
                                            next_team = lead(Value, order_by = Start), 
                                            next_team_assign_time = lead(Start, order_by = Start))
 
-out <- out %>% mutate(t_or_r = case_when(next_team_assign_time < Resolved | (!is.na(next_team_assign_time) & is.na(Resolved)) 
+out <- out %>% mutate(t_or_r = case_when(next_team_assign_time <= Resolved | (!is.na(next_team_assign_time) & is.na(Resolved)) 
                                          ~ "Transferred",
                                          next_team_assign_time > Resolved | (is.na(next_team_assign_time) & !is.na(Resolved))
                                          ~ "Resolved",
@@ -47,7 +47,12 @@ out <- out %>% mutate(Transferred_to = case_when(str_detect(next_team, "(?i)Regi
                                           t_or_r == "Transferred" ~ paste0("Transferred - Other"),
                                           TRUE ~ t_or_r))
 
-writeLines(paste("Exporting file now at", Sys.time(),"\n Elapsed time:", Sys.time()-start_time))
-write.csv(out, na="", row.names=FALSE, "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\INC History\\GHD Transfer History\\ghdt.csv")
-writeLines(paste0("Start time: ", start_time, "\nEnd time: ", Sys.time(), "\nElapsed time: ", Sys.time() - start_time))
+writeLines(paste("Exporting file now at", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
+# write.csv(out, na="", row.names=FALSE, "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\INC History\\GHD Transfer History\\ghdt.csv")
+# writeLines(paste0("Start time: ", start_time, "\nEnd time: ", Sys.time(), "\nElapsed time: ", Sys.time() - start_time))
+writexl::write_xlsx(out, path= "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\INC History\\GHD Transfer History\\GHD_handling.xlsx")
+writeLines(paste0("Start time: ", start_time,
+                  "\nEnd time: ", Sys.time(),
+                  "\nElapsed time: ", round(difftime(Sys.time(),start_time, units='secs'),2), " seconds."))
+# !!! change to excel...
 
