@@ -1,5 +1,5 @@
 # Mean Time to Response (MTTR) & Mean Time Restore Service (MTRS) Analysis
-# Relies on both team pass history & assignment pass history
+# Relies on both team pass history & analyst assignment history & full export of all OnePOS Incidents
 
 library(tidyverse); library(lubridate); library(tools)
 start_time <- Sys.time()
@@ -19,6 +19,7 @@ import_files <- function(files){
     data$import_sheet <- str_extract(files[i], "(?<=/).*") # positive lookbehind
     out <- bind_rows(out, data)
   }
+  ## add distinct('everything-but-import-sheet') line
   return(out)
 }
 
@@ -84,19 +85,24 @@ all_history <- all_history %>% arrange(Number, Start) %>% group_by(Number) %>%
 
 first_L1_response <- all_history %>% filter(L1_response == 1) %>% 
   mutate(L1_Time_of_Response_Date = date(Start)) %>%
-  select(Number, L1_Response_Analyst = Value, L1_Response_Time = response_time, L1_Time_of_Response = Start, L1_Time_of_Response_Date)
+  select(Number, L1_assignment_time = prev_time, L1_Response_Analyst = Value, L1_Response_Time = response_time, L1_Time_of_Response = Start, L1_Time_of_Response_Date) %>%
+  mutate(L1_assignment_date = date(L1_assignment_time))
 first_L2_response <- all_history %>% filter(L2_response == 1) %>%
   mutate(L2_Time_of_Response_Date = date(Start)) %>%
-  select(Number, L2_Response_Analyst = Value, L2_Response_Time = response_time, L2_Time_of_Response = Start, L2_Time_of_Response_Date)
+  select(Number, L2_assignment_time = prev_time, L2_Response_Analyst = Value, L2_Response_Time = response_time, L2_Time_of_Response = Start, L2_Time_of_Response_Date) %>%
+  mutate(L2_assignment_date = date(L2_assignment_time))
 first_L3_response <- all_history %>% filter(L3_response == 1) %>%
   mutate(L3_Time_of_Response_Date = date(Start)) %>%
-  select(Number, L3_Response_Analyst = Value, L3_Response_Time = response_time, L3_Time_of_Response = Start, L3_Time_of_Response_Date)
+  select(Number, L3_assignment_time = prev_time, L3_Response_Analyst = Value, L3_Response_Time = response_time, L3_Time_of_Response = Start, L3_Time_of_Response_Date) %>%
+  mutate(L3_assignment_date = date(L3_assignment_time))
 first_aloha_response <- all_history %>% filter(aloha_response == 1) %>%
   mutate(aloha_Time_of_Response_Date = date(Start)) %>%
-  select(Number, aloha_Response_Analyst = Value, aloha_Response_Time = response_time, aloha_Time_of_Response = Start, aloha_Time_of_Response_Date)
+  select(Number, aloha_assignment_time = prev_time, aloha_Response_Analyst = Value, aloha_Response_Time = response_time, aloha_Time_of_Response = Start, aloha_Time_of_Response_Date) %>%
+  mutate(aloha_assignment_date = date(aloha_assignment_time))
 first_payments_response <- all_history %>% filter(payments_response == 1) %>%
   mutate(payments_Time_of_Response_Date = date(Start)) %>%
-  select(Number, payments_Response_Analyst = Value, payments_Response_Time = response_time, payments_Time_of_Response = Start, payments_Time_of_Response_Date)
+  select(Number, payments_assignment_time = prev_time, payments_Response_Analyst = Value, payments_Response_Time = response_time, payments_Time_of_Response = Start, payments_Time_of_Response_Date) %>%
+  mutate(payments_assignment_date = date(payments_assignment_time))
 
 # get start time of last assigned team for time-to-restore-service by assignment time (instead of creation)
 # (reopened tickets will still have old resolve time, and thus incorrectly show a TTRS)
@@ -105,8 +111,11 @@ last_team_start <- team_history %>% group_by(Number) %>% filter(Start == max(Sta
          team_TRS_hours = difftime(Resolved, Start, units = 'hours')) %>%
   select(Number, last_team = Value, last_team_start = Start, last_team_start_date, team_TRS_hours)
 
-# import incident list. join aggregation data to incident list ----
-OnePOS_Incidents_Import <- readxl::read_excel(path = "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\incident.xlsx")
+# import incident list from multiple sheets. join aggregation data to incident list ----
+onepos_files <- list.files("\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\OnePOS Incidents", "(?i)onepos_inc", full.names = TRUE)
+OnePOS_Incidents_Import <- import_files(files = onepos_files)
+OnePOS_Incidents_Import$import_sheet <- NULL
+OnePOS_Incidents_Import <- OnePOS_Incidents_Import %>% distinct()
 
 
 # to add: filter by quarter
@@ -136,6 +145,7 @@ writexl::write_xlsx(x = out, path = "\\\\cewp1650\\Chris Jabr Reports\\ONOW Expo
 # reference: benchmarking time
 # start_time <- Sys.time()
 # writeLines(paste("Starting:", start_time))
-writeLines(paste0("Start time: ", start_time,
+writeLines(paste0("DONE.",
+                  "\nStart time: ", start_time,
                   "\nEnd time: ", Sys.time(),
                   "\nElapsed time: ", round(difftime(Sys.time(),start_time, units='secs'),2), " seconds."))
