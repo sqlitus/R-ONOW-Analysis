@@ -1,5 +1,5 @@
 # Open Volume Over Time - HISTORICAL BACKLOG REPORT #
-# Using Incident Team Assignment History & State History to find open queue volumes
+# Using Incident Team History & State History to find open queue volumes
 
 library(tidyverse); library(lubridate)
 start_time <- Sys.time()
@@ -84,7 +84,10 @@ out <- ovot %>% select(Number, datetime, Status=Value.x, Team=Value.y)
 
 
 # output
-writeLines(paste("Exporting file now at", Sys.time(),"\n Elapsed time:", Sys.time()-start_time))
-write.csv(out, na = "", row.names = FALSE, paste0(path, "\\ovot.csv"))
-writeLines(paste0("Start time: ", start_time, "\nEnd time: ", Sys.time(), "\nElapsed time: ", Sys.time() - start_time))
+writeLines(paste("Exporting file now at", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
+# write.csv(out, na = "", row.names = FALSE, paste0(path, "\\ovot.csv"))
+writexl::write_xlsx(x = out, path = paste0(path, "\\ovot.xlsx"))  # switch to this
+writeLines(paste0("DONE. \nStart time: ", start_time,
+                  "\nEnd time: ", Sys.time(),
+                  "\nElapsed time: ", round(difftime(Sys.time(),start_time, units='secs'),2), " seconds."))
 
