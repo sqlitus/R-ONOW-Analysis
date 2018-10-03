@@ -1,4 +1,5 @@
 # Phil's GHD transfer analysis
+# Just uses team history
 
 library(tidyverse); library(lubridate)
 start_time <- Sys.time()
@@ -17,18 +18,25 @@ for (i in 1:length(team_history_files)){
 }
 team_history <- team_history %>% distinct(Number, Field, Value, Start, End, Resolved, State, .keep_all = TRUE)
 
-# prune assignment history. remove assignments with same start & end dates, and reassignments to same team.
+# filter team history to JUST Incidents that have passed through GHD ...
+tickets_GHD_touched <- team_history %>% filter(Value == "Global Help Desk") %>% select(Number)
+out <- team_history %>% inner_join(tickets_GHD_touched)
+
+# prune team history. remove assignments with same start & end dates, and reassignments to same team.
 # should represent true transfer history between teams
-out <- team_history
+# out <- team_history
 filter_out <- out %>% filter(State == 'Canceled' | Start == End)
 out <- out %>% anti_join(filter_out)  # filtered out 'flash' reassignments to same team
 out <- out %>% group_by(Number) %>% mutate(prev_team = lag(Value, order_by = Start), 
                                            next_team = lead(Value, order_by = Start))
 out <- out %>% filter(prev_team != Value | is.na(prev_team))  # include nulls 
+
+# Find preveious & next team assignments
 out <- out %>% group_by(Number) %>% mutate(prev_team = lag(Value, order_by = Start), 
                                            next_team = lead(Value, order_by = Start), 
                                            next_team_assign_time = lead(Start, order_by = Start))
 
+# compare transfer time to resolve time to determine if a ticket was transferred or resolved
 out <- out %>% mutate(t_or_r = case_when(next_team_assign_time <= Resolved | (!is.na(next_team_assign_time) & is.na(Resolved)) 
                                          ~ "Transferred",
                                          next_team_assign_time > Resolved | (is.na(next_team_assign_time) & !is.na(Resolved))
@@ -36,6 +44,8 @@ out <- out %>% mutate(t_or_r = case_when(next_team_assign_time <= Resolved | (!i
                                          is.na(next_team_assign_time) & is.na(Resolved)
                                          ~ "Still open"
                                          ))
+
+# filter to just the GHD assignments
 out <- out %>% arrange(Number, Start)
 out <- out %>% filter(Value == "Global Help Desk")
 out <- out %>% mutate(Transferred_to = case_when(str_detect(next_team, "(?i)Regional IT") | 
@@ -49,10 +59,7 @@ out <- out %>% mutate(Transferred_to = case_when(str_detect(next_team, "(?i)Regi
 
 writeLines(paste("Exporting file now at", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
 # write.csv(out, na="", row.names=FALSE, "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\INC History\\GHD Transfer History\\ghdt.csv")
-# writeLines(paste0("Start time: ", start_time, "\nEnd time: ", Sys.time(), "\nElapsed time: ", Sys.time() - start_time))
 writexl::write_xlsx(out, path= "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\INC History\\GHD Transfer History\\GHD_handling.xlsx")
-writeLines(paste0("Start time: ", start_time,
+writeLines(paste0("DONE.\nStart time: ", start_time,
                   "\nEnd time: ", Sys.time(),
-                  "\nElapsed time: ", round(difftime(Sys.time(),start_time, units='secs'),2), " seconds."))
-# !!! change to excel...
-
+                  "\nTotal elapsed time: ", round(difftime(Sys.time(),start_time, units='secs'),2), " seconds."))
