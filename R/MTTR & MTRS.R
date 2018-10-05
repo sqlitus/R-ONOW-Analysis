@@ -51,7 +51,7 @@ first_team <- team_history %>% group_by(Number) %>% filter(Start == min(Start)) 
 # get count of times each ticket was assigned to L1 ----
 L1_assigns <- team_history %>% filter(Value == 'Retail Support') %>% count(Number) %>% rename(L1_assigns = n)
   
-# get first L1/L2/L3/aloha/payments team assignment per ticket ----
+# get first L1/L2/L3/aloha/payments/supply-chain team assignment per ticket ----
 first_L1 <- team_history %>% group_by(Number) %>% filter(Value == 'Retail Support') %>% filter(Start == min(Start)) %>%
   mutate(first_L1 = 1) %>% select(Number, Start, first_L1)
 first_L2 <- team_history %>% group_by(Number) %>% filter(Value == 'Retail Support L2') %>% filter(Start == min(Start)) %>%
@@ -62,6 +62,8 @@ first_aloha <- team_history %>% group_by(Number) %>% filter(Value == 'Aloha Supp
   mutate(first_aloha = 1) %>% select(Number, Start, first_aloha)
 first_payments <- team_history %>% group_by(Number) %>% filter(Value == 'Retail Payments') %>% filter(Start == min(Start)) %>%
   mutate(first_payments = 1) %>% select(Number, Start, first_payments)
+first_supplychain <- team_history %>% group_by(Number) %>% filter(Value == 'Supply Chain & Merchandising Support') %>% filter(Start == min(Start)) %>%
+  mutate(first_supplychain = 1) %>% select(Number, Start, first_supplychain)
 
 # compile all team & analyst passing history to compare team assignments w/ initial analyst assignments ----
 all_history <- bind_rows(team_history, assign_history) %>% arrange(Start)
@@ -72,16 +74,18 @@ all_history <- all_history %>% arrange(Number, Start) %>% group_by(Number) %>%
          response_time = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' ~ 
                                      difftime(Start, prev_time, units='hours')))
 
-# get first analyst responses for teams L1/L2/L3/aloha/payments ----
+# get first analyst responses for teams L1/L2/L3/aloha/payments/supply-chain ----
 all_history <- all_history %>% left_join(first_L1) %>% left_join(first_L2) %>% left_join(first_L3) %>%
-  left_join(first_aloha) %>% left_join(first_payments)
+  left_join(first_aloha) %>% left_join(first_payments) %>% left_join(first_supplychain)
 
 all_history <- all_history %>% arrange(Number, Start) %>% group_by(Number) %>%
   mutate(L1_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L1 == 1) ~ 1),
          L2_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L2 == 1) ~ 1),
          L3_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L3 == 1) ~ 1),
          aloha_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_aloha == 1) ~ 1),
-         payments_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_payments == 1) ~ 1))
+         payments_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_payments == 1) ~ 1),
+         supplychain_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_supplychain == 1) ~ 1)
+         )
 
 first_L1_response <- all_history %>% filter(L1_response == 1) %>% 
   mutate(L1_Time_of_Response_Date = date(Start)) %>%
@@ -103,6 +107,10 @@ first_payments_response <- all_history %>% filter(payments_response == 1) %>%
   mutate(payments_Time_of_Response_Date = date(Start)) %>%
   select(Number, payments_assignment_time = prev_time, payments_Response_Analyst = Value, payments_Response_Time = response_time, payments_Time_of_Response = Start, payments_Time_of_Response_Date) %>%
   mutate(payments_assignment_date = date(payments_assignment_time))
+first_supplychain_response <- all_history %>% filter(supplychain_response == 1) %>%
+  mutate(supplychain_Time_of_Response_Date = date(Start)) %>%
+  select(Number, supplychain_assignment_time = prev_time, supplychain_Response_Analyst = Value, supplychain_Response_Time = response_time, supplychain_Time_of_Response = Start, supplychain_Time_of_Response_Date) %>%
+  mutate(supplychain_assignment_date = date(supplychain_assignment_time))
 
 # get start time of last assigned team for time-to-restore-service by assignment time (instead of creation)
 # (reopened tickets will still have old resolve time, and thus incorrectly show a TTRS)
@@ -124,6 +132,7 @@ out <- OnePOS_Incidents_Import %>%
   left_join(L1_assigns) %>%
   left_join(first_L1_response) %>% left_join(first_L2_response) %>% left_join(first_L3_response) %>%
   left_join(first_aloha_response) %>% left_join(first_payments_response) %>%
+  left_join(first_supplychain_response) %>%
   left_join(last_team_start)
 if (nrow(out) == nrow(OnePOS_Incidents_Import)) "data is good" else "not good"  # check for duplicates/problems
 
