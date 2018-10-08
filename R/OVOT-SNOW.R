@@ -1,7 +1,10 @@
 # Open Volume Over Time - HISTORICAL BACKLOG REPORT #
 # Using Incident Team History & State History to find open queue volumes
 
-library(tidyverse); library(lubridate)
+# conditionally install packages if not already installed, then load
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, lubridate)
+
 start_time <- Sys.time()
 print(paste("Starting:", start_time))
 

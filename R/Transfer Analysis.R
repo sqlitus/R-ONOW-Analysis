@@ -1,7 +1,8 @@
 # Phil's GHD transfer analysis
 # Just uses team history
 
-library(tidyverse); library(lubridate)
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, lubridate)
 start_time <- Sys.time()
 print(paste("Starting:", start_time))
 
