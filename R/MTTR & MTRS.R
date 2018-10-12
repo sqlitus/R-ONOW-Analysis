@@ -75,16 +75,17 @@ all_history <- all_history %>% arrange(Number, Start) %>% group_by(Number) %>%
                                      difftime(Start, prev_time, units='hours')))
 
 # get first analyst responses for teams L1/L2/L3/aloha/payments/supply-chain ----
+# AD-HOC FILTER: DON'T CALCULATE RESOLVED TICKETS...
 all_history <- all_history %>% left_join(first_L1) %>% left_join(first_L2) %>% left_join(first_L3) %>%
   left_join(first_aloha) %>% left_join(first_payments) %>% left_join(first_supplychain)
 
 all_history <- all_history %>% arrange(Number, Start) %>% group_by(Number) %>%
-  mutate(L1_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L1 == 1) ~ 1),
-         L2_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L2 == 1) ~ 1),
-         L3_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L3 == 1) ~ 1),
-         aloha_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_aloha == 1) ~ 1),
-         payments_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_payments == 1) ~ 1),
-         supplychain_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_supplychain == 1) ~ 1)
+  mutate(L1_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L1 == 1) & (Start < Resolved | (!is.na(Start) & is.na(Resolved))) ~ 1),
+         L2_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L2 == 1) & (Start < Resolved | (!is.na(Start) & is.na(Resolved))) ~ 1),
+         L3_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L3 == 1) & (Start < Resolved | (!is.na(Start) & is.na(Resolved))) ~ 1),
+         aloha_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_aloha == 1) & (Start < Resolved | (!is.na(Start) & is.na(Resolved))) ~ 1),
+         payments_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_payments == 1) & (Start < Resolved | (!is.na(Start) & is.na(Resolved))) ~ 1),
+         supplychain_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_supplychain == 1) & (Start < Resolved | (!is.na(Start) & is.na(Resolved))) ~ 1)
          )
 
 first_L1_response <- all_history %>% filter(L1_response == 1) %>% 
