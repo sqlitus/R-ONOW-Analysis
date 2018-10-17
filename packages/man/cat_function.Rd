@@ -2,10 +2,10 @@
 % Please edit documentation in R/cat_function.R
 \name{cat_function}
 \alias{cat_function}
-\title{here's the line directly above the function. requires 'apos to see}
+\title{here's the line directly above the cat_function. requires 'apos to see}
 \usage{
 cat_function(love = TRUE)
 }
 \description{
-here's the line directly above the function. requires 'apos to see
+here's the line directly above the cat_function. requires 'apos to see
 }

@@ -3,7 +3,7 @@
 
 
 
-#' here's the line directly above the function. requires 'apos to see
+#' here's the line directly above the cat_function. requires 'apos to see
 cat_function <- function(love=TRUE){
   if(love==TRUE){
     print("I love cats!")
@@ -14,26 +14,37 @@ cat_function <- function(love=TRUE){
 }
 
 
-#' import csv or excel files.
-import_files <- function(files){
-  out <- data_frame()
-  for (i in 1:length(files)){
-    if (file_ext(files[i]) == "xlsx") { data <- readxl::read_excel(files[i])
-    } else if (file_ext(files[i]) == "csv") { data <- read.csv(files[i])  # make change: convert columns on import
-    } else { break }
-    data$import_sheet <- str_extract(files[i], "(?<=/).*") # positive lookbehind
-    out <- bind_rows(out, data)
-  }
-  ## add distinct('everything-but-import-sheet') line
-  return(out)
+
+# ' this is the EM function. can't see its documentation somehow.
+em_func <- function(df_string, col_string){
+  require(dplyr); require(stringr )
+  df <- get(df_string)  # get the df object by name
+  
+  df['extract'] <- stringr::str_extract(df[[col_string]], "\\b\\d{5}\\b")  # create column
+  df$title_extracted_BU <- str_extract(df[[col_string]], "\\b\\d{5}\\b")  # second method. change formula $ to [[
+  df[paste0(col_string, '_extracted_BU')] <- stringr::str_extract(df[[col_string]], "\\b\\d{5}\\b")
+  return(df)
 }
+
+
+
+
+
+
+
+
+
 
 # Usage:
 # files <- list.files(path, full.names = TRUE)
 # OnePOS_Incidents_Import <- import_files(files)
 
 
-# Package guides:
+
+
+
+
+
 #### 2018-10-16 - creating a package ----
 # https://hilaryparker.com/2014/04/29/writing-an-r-package-from-scratch/
 
