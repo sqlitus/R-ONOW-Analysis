@@ -24,11 +24,14 @@ import_files <- function(files){
 }
 
 # import team history data & filter out flash assignments ----
+paste("Importing team history at:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2))
 team_history <- import_files(team_history_files) %>% distinct(Number, Field, Value, Start, End, Resolved, State) %>% arrange(Start)
 filter_out_teams <- team_history %>% filter(Start == End)  # anti join to filter out flash assignments, while keeping NA times
 team_history <- team_history %>% anti_join(filter_out_teams)
 
 # import assign history data (from csv) & filter out blank & flash assignments ----
+paste("Importing assignment history at:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2))
+
 assign_history <- import_files(assign_history_files) %>% 
   rename(Number=inc_number, Field=mi_field, Value=mi_value, Start=mi_start, End=mi_end, Resolved=inc_resolved_at, State=inc_state) %>%
   distinct(Number, Field, Value, Start, End, Resolved, State) %>%
@@ -52,17 +55,19 @@ first_team <- team_history %>% group_by(Number) %>% filter(Start == min(Start)) 
 L1_assigns <- team_history %>% filter(Value == 'Retail Support') %>% count(Number) %>% rename(L1_assigns = n)
   
 # get first L1/L2/L3/aloha/payments/supply-chain team assignment per ticket ----
+print(paste("Calculating initial team assignment times per ticket:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
+
 first_L1 <- team_history %>% group_by(Number) %>% filter(Value == 'Retail Support') %>% filter(Start == min(Start)) %>%
   mutate(first_L1 = 1) %>% select(Number, Start, first_L1)
 first_L2 <- team_history %>% group_by(Number) %>% filter(Value == 'Retail Support L2') %>% filter(Start == min(Start)) %>%
   mutate(first_L2 = 1) %>% select(Number, Start, first_L2)
 first_L3 <- team_history %>% group_by(Number) %>% filter(Value == 'Retail Support L3') %>% filter(Start == min(Start)) %>%
   mutate(first_L3 = 1) %>% select(Number, Start, first_L3)
-first_aloha <- team_history %>% group_by(Number) %>% filter(Value == 'Aloha Support Team') %>% filter(Start == min(Start)) %>%
+first_aloha <- team_history %>% group_by(Number) %>% filter(str_detect(Value, 'Aloha Support')) %>% filter(Start == min(Start)) %>%
   mutate(first_aloha = 1) %>% select(Number, Start, first_aloha)
 first_payments <- team_history %>% group_by(Number) %>% filter(Value == 'Retail Payments') %>% filter(Start == min(Start)) %>%
   mutate(first_payments = 1) %>% select(Number, Start, first_payments)
-first_supplychain <- team_history %>% group_by(Number) %>% filter(Value == 'Supply Chain & Merchandising Support') %>% filter(Start == min(Start)) %>%
+first_supplychain <- team_history %>% group_by(Number) %>% filter(str_detect(Value, 'Supply Chain.*Merchandising Support')) %>% filter(Start == min(Start)) %>%
   mutate(first_supplychain = 1) %>% select(Number, Start, first_supplychain)
 
 # compile all team & analyst passing history to compare team assignments w/ initial analyst assignments ----
@@ -76,16 +81,18 @@ all_history <- all_history %>% arrange(Number, Start) %>% group_by(Number) %>%
 
 # get first analyst responses for teams L1/L2/L3/aloha/payments/supply-chain ----
 # AD-HOC FILTER: DON'T CALCULATE RESOLVED TICKETS...
+print(paste("Calculating initial ANALYST reponses:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
+
 all_history <- all_history %>% left_join(first_L1) %>% left_join(first_L2) %>% left_join(first_L3) %>%
   left_join(first_aloha) %>% left_join(first_payments) %>% left_join(first_supplychain)
 
 all_history <- all_history %>% arrange(Number, Start) %>% group_by(Number) %>%
-  mutate(L1_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L1 == 1) & (Start < Resolved | (!is.na(Start) & is.na(Resolved))) ~ 1),
-         L2_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L2 == 1) & (Start < Resolved | (!is.na(Start) & is.na(Resolved))) ~ 1),
-         L3_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L3 == 1) & (Start < Resolved | (!is.na(Start) & is.na(Resolved))) ~ 1),
-         aloha_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_aloha == 1) & (Start < Resolved | (!is.na(Start) & is.na(Resolved))) ~ 1),
-         payments_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_payments == 1) & (Start < Resolved | (!is.na(Start) & is.na(Resolved))) ~ 1),
-         supplychain_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_supplychain == 1) & (Start < Resolved | (!is.na(Start) & is.na(Resolved))) ~ 1)
+  mutate(L1_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L1 == 1) ~ 1),  # & (Start < Resolved | (!is.na(Start) & is.na(Resolved)))
+         L2_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L2 == 1) ~ 1),
+         L3_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L3 == 1) ~ 1),
+         aloha_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_aloha == 1) ~ 1),
+         payments_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_payments == 1) ~ 1),
+         supplychain_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_supplychain == 1) ~ 1)
          )
 
 first_L1_response <- all_history %>% filter(L1_response == 1) %>% 
@@ -121,6 +128,8 @@ last_team_start <- team_history %>% group_by(Number) %>% filter(Start == max(Sta
   select(Number, last_team = Value, last_team_start = Start, last_team_start_date, team_TRS_hours)
 
 # import incident list from multiple sheets. join aggregation data to incident list ----
+print(paste("Importing full OnePOS+SCMS INC list:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
+
 onepos_files <- list.files("\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\OnePOS Incidents", "(?i)onepos_inc", full.names = TRUE)
 OnePOS_Incidents_Import <- import_files(files = onepos_files)
 OnePOS_Incidents_Import$import_sheet <- NULL
@@ -128,6 +137,8 @@ OnePOS_Incidents_Import <- OnePOS_Incidents_Import %>% distinct()
 
 
 # to add: filter by quarter
+print(paste("Joining reponse times to INC list:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
+
 out <- OnePOS_Incidents_Import %>% 
   left_join(first_team) %>%
   left_join(L1_assigns) %>%
