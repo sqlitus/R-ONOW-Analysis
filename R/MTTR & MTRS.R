@@ -3,7 +3,7 @@
 
 library(tidyverse); library(lubridate); library(tools)
 start_time <- Sys.time()
-print(paste("Starting:", start_time))
+writeLines(paste("Starting:", start_time))
 
 # find all historical files for import ----
 path <- "\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\INC History"
@@ -24,13 +24,13 @@ import_files <- function(files){
 }
 
 # import team history data & filter out flash assignments ----
-paste("Importing team history at:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2))
+writeLines(paste("Importing team history at:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
 team_history <- import_files(team_history_files) %>% distinct(Number, Field, Value, Start, End, Resolved, State) %>% arrange(Start)
 filter_out_teams <- team_history %>% filter(Start == End)  # anti join to filter out flash assignments, while keeping NA times
 team_history <- team_history %>% anti_join(filter_out_teams)
 
 # import assign history data (from csv) & filter out blank & flash assignments ----
-paste("Importing assignment history at:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2))
+writeLines(paste("Importing assignment history at:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
 
 assign_history <- import_files(assign_history_files) %>% 
   rename(Number=inc_number, Field=mi_field, Value=mi_value, Start=mi_start, End=mi_end, Resolved=inc_resolved_at, State=inc_state) %>%
@@ -81,7 +81,7 @@ all_history <- all_history %>% arrange(Number, Start) %>% group_by(Number) %>%
 
 # get first analyst responses for teams L1/L2/L3/aloha/payments/supply-chain ----
 # AD-HOC FILTER: DON'T CALCULATE RESOLVED TICKETS...
-print(paste("Calculating initial ANALYST reponses:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
+writeLines(paste("Calculating initial ANALYST reponses:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
 
 all_history <- all_history %>% left_join(first_L1) %>% left_join(first_L2) %>% left_join(first_L3) %>%
   left_join(first_aloha) %>% left_join(first_payments) %>% left_join(first_supplychain)
@@ -128,7 +128,7 @@ last_team_start <- team_history %>% group_by(Number) %>% filter(Start == max(Sta
   select(Number, last_team = Value, last_team_start = Start, last_team_start_date, team_TRS_hours)
 
 # import incident list from multiple sheets. join aggregation data to incident list ----
-print(paste("Importing full OnePOS+SCMS INC list:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
+writeLines(paste("Importing full OnePOS+SCMS INC list:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
 
 onepos_files <- list.files("\\\\cewp1650\\Chris Jabr Reports\\ONOW Exports\\OnePOS Incidents", "(?i)onepos_inc", full.names = TRUE)
 OnePOS_Incidents_Import <- import_files(files = onepos_files)
