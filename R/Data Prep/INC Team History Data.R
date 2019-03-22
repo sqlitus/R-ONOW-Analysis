@@ -25,9 +25,9 @@ for (i in 1:length(team_history_files)){
 
 # keep distinct rows, filter out duplicates (may be due to misaligned export filters)
 writeLines(str_glue('Removing duplicate records.\nElapsed time: {round(difftime(Sys.time(),start_time, units="secs"),1)} seconds'))
-team_history <- team_history %>% select(Number, Field, Value, Start, End) %>% distinct()  # keep distinct records
-filter_out <- team_history %>% filter(Start == End)  # filter out duplicates
-team_history <- team_history %>% anti_join(filter_out)  # safest way to filter out (avoids null/empty errors)
+team_history <- team_history %>% select(Number, Value, Start, End) %>% distinct()  # keep distinct records
+filter_out <- team_history %>% filter(Start == End)  # filter out 'flash' assignments
+team_history <- team_history %>% anti_join(filter_out)  # safest way to filter out records (avoids null/empty errors)
 
 # df: get distinct incidents
 writeLines(str_glue('Compiling distinct incidents.\nElapsed time: {round(difftime(Sys.time(),start_time, units="secs"),1)} seconds'))
@@ -53,6 +53,8 @@ inc_list_first_5_teams <- distinct_incidents %>%
   left_join(inc_team_5)
 
 # TODO: output metadata readme file?
+# TODO: re-export history with name changes or team name/alias dataset
+# TODO: packrat
 
 # output dfs: full team history & first 5 teams.
 
