@@ -1,10 +1,9 @@
 # INC Full List - First 5 teams
 
-# Purpose
-# Sort/clean Team History Data, and get distinct list of INC with 1st/2nd/3rd/4th/5th teams
+# Purpose: Sort/clean Team History Data, and get distinct list of INC with 1st/2nd/3rd/4th/5th teams
 
 # Note 
-# 2019-04-08: Currently using because CSV writexl problems.
+# 2019-04-08: Currently using Excel because CSV writexl problems.
 # Using Incident Team History extracts - OLD EXCEL DATASETS W/ OLD HISTORICAL TEAM NAMES
 
 
@@ -49,7 +48,8 @@ team_history <- team_history %>% anti_join(filter_out)  # safest way to filter o
 writeLines(str_glue('Filtering out consecutive redundant assignments. Elapsed time: {round(difftime(Sys.time(),start_time, units="secs"),1)} seconds'))
 assignment_group_reassignments <- team_history %>% 
   group_by(Number) %>%
-  mutate(prev_team = lag(Value, order_by = Start)) %>%
+  arrange(Start)
+  mutate(prev_team = lag(Value)) %>%
   filter(Value == prev_team)
 team_history <- team_history %>% anti_join(assignment_group_reassignments)
 
@@ -64,10 +64,10 @@ distinct_incidents <- team_history %>% select(Number) %>% distinct()
 # dfs: get history team order, get 1st/2nd/etc teams, join to distinct_incidents
 inc_history_team_order <- team_history %>% group_by(Number) %>% arrange(Start) %>%   # sort data once?
   mutate(team_order = row_number(Start),
-  prev_team = lag(Value),
-  prev_team_start = lag(Start),
-  next_team = lead(Value),
-  next_team_start = lead(Start))
+         prev_team = lag(Value),
+         prev_team_start = lag(Start),
+         next_team = lead(Value),
+         next_team_start = lead(Start))
 
 writeLines(str_glue('Getting first 5 team assignments. Elapsed time: {round(difftime(Sys.time(),start_time, units="secs"),1)} seconds'))
 inc_team_1 <- inc_history_team_order %>% filter(team_order == 1) %>% mutate(team_1 = Value, team_1_start = Start) %>% select(Number, team_1, team_1_start)
