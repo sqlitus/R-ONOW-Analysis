@@ -23,11 +23,29 @@ import_files <- function(files){
   return(out)
 }
 
-# import team history data & filter out flash assignments ----
+# import team history data ----
 writeLines(paste("Importing team history at:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
 team_history <- import_files(team_history_files) %>% distinct(Number, Field, Value, Start, End, Resolved, State) %>% arrange(Start)
+
+
+
+# FILTER OUT: flash assignments - team passes ----
 filter_out_teams <- team_history %>% filter(Start == End)  # anti join to filter out flash assignments, while keeping NA times
 team_history <- team_history %>% anti_join(filter_out_teams)
+
+
+
+# FILTER OUT: later redundant re-assignments records to same team (team1, then same team1 later; doesn't always show in audit log)
+# (this sometimes occurs during other ticket updates. hypothesis: due to an assn. group change unsaved???)
+writeLines(str_glue('Filtering out consecutive redundant assignments. Elapsed time: {round(difftime(Sys.time(),start_time, units="secs"),1)} seconds'))
+assignment_group_reassignments <- team_history %>% 
+  group_by(Number) %>%
+  arrange(Start) %>%
+  mutate(prev_team = lag(Value)) %>%
+  filter(Value == prev_team)
+team_history <- team_history %>% anti_join(assignment_group_reassignments)
+
+
 
 # import assign history data (from csv) & filter out blank & flash assignments ----
 writeLines(paste("Importing assignment history at:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
@@ -45,8 +63,22 @@ assign_history$End <- as.POSIXct(assign_history$End, format = "%m-%d-%Y %H:%M:%S
 assign_history$Resolved <- as.POSIXct(assign_history$Resolved, format = "%m-%d-%Y %H:%M:%S", tz = "UTC")
 assign_history$State <- as.character(assign_history$State)
 
+
+
+# FILTER OUT: flash assignments ----
 filter_out_assigns <- assign_history %>% filter(Start == End)  # anti join to filter out flash assignments, while keeping NA times
 assign_history <- assign_history %>% anti_join(filter_out_assigns)
+
+
+
+# FILTER OUT: later redundant re-assignments to same person
+filter_out_reassigns <- assign_history %>%
+  group_by(Number) %>%
+  arrange(Start) %>%
+  mutate(prev_analyst = lag(Value)) %>%
+  filter(Value == prev_analyst)
+assign_history <- assign_history %>% anti_join(filter_out_reassigns)
+
 
 # get first team per ticket ----
 first_team <- team_history %>% group_by(Number) %>% filter(Start == min(Start)) %>% select(Number, first_team = Value)
@@ -71,22 +103,23 @@ first_supplychain <- team_history %>% group_by(Number) %>% filter(str_detect(Val
   mutate(first_supplychain = 1) %>% select(Number, Start, first_supplychain)
 
 # compile all team & analyst passing history to compare team assignments w/ initial analyst assignments ----
-all_history <- bind_rows(team_history, assign_history) %>% arrange(Start)
-all_history <- all_history %>% arrange(Number, Start) %>% group_by(Number) %>% 
+writeLines(paste("Calculating initial ANALYST reponses:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
+all_history <- bind_rows(team_history, assign_history)
+all_history <- all_history %>% group_by(Number) %>% arrange(Start) %>%
   mutate(event_num = row_number(),
-         prev_time = lag(Start, order_by = Start),
-         prev_action = lag(Field, order_by = Start),
+         prev_time = lag(Start),
+         prev_action = lag(Field),
          response_time = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' ~ 
                                      difftime(Start, prev_time, units='hours')))
 
 # get first analyst responses for teams L1/L2/L3/aloha/payments/supply-chain ----
 # AD-HOC FILTER: DON'T CALCULATE RESOLVED TICKETS...
-writeLines(paste("Calculating initial ANALYST reponses:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
+writeLines(paste("Blending team & analyst histories. Calculating initial ANALYST reponses:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
 
 all_history <- all_history %>% left_join(first_L1) %>% left_join(first_L2) %>% left_join(first_L3) %>%
   left_join(first_aloha) %>% left_join(first_payments) %>% left_join(first_supplychain)
 
-all_history <- all_history %>% arrange(Number, Start) %>% group_by(Number) %>%
+all_history <- all_history %>% group_by(Number) %>% arrange(Start) %>% 
   mutate(L1_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L1 == 1) ~ 1),  # & (Start < Resolved | (!is.na(Start) & is.na(Resolved)))
          L2_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L2 == 1) ~ 1),
          L3_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L3 == 1) ~ 1),
@@ -121,7 +154,9 @@ first_supplychain_response <- all_history %>% filter(supplychain_response == 1) 
   mutate(supplychain_assignment_date = date(supplychain_assignment_time))
 
 # get start time of last assigned team for time-to-restore-service by assignment time (instead of creation)
-# (reopened tickets will still have old resolve time, and thus incorrectly show a TTRS)
+# (reopened tickets will still have old resolve time, and thus incorrectly show a TTRS. filter out non-opens in workbook)
+# (2019-04-09: this data has been unused for some time)
+writeLines(paste("Getting last team start time, for MTRS by individ. team time:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
 last_team_start <- team_history %>% group_by(Number) %>% filter(Start == max(Start)) %>%
   mutate(last_team_start_date = date(Start),
          team_TRS_hours = difftime(Resolved, Start, units = 'hours')) %>%
