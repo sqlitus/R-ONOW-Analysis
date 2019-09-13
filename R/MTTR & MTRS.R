@@ -35,7 +35,7 @@ team_history <- team_history %>% anti_join(filter_out_teams)
 
 
 
-# FILTER OUT: later redundant re-assignments records to same team (team1, then same team1 later; doesn't always show in audit log)
+# FILTER OUT: later redundant re-assignments records to same team (team1, then same team1 later; doesn't always show in audit log) ----
 # (this sometimes occurs during other ticket updates. hypothesis: due to an assn. group change unsaved???)
 writeLines(str_glue('Filtering out consecutive redundant assignments. Elapsed time: {round(difftime(Sys.time(),start_time, units="secs"),1)} seconds'))
 assignment_group_reassignments <- team_history %>% 
@@ -71,7 +71,7 @@ assign_history <- assign_history %>% anti_join(filter_out_assigns)
 
 
 
-# FILTER OUT: later redundant re-assignments to same person
+# FILTER OUT: later redundant re-assignments to same person ----
 filter_out_reassigns <- assign_history %>%
   group_by(Number) %>%
   arrange(Start) %>%
@@ -102,6 +102,17 @@ first_payments <- team_history %>% group_by(Number) %>% filter(Value == 'Retail 
 first_supplychain <- team_history %>% group_by(Number) %>% filter(str_detect(Value, 'Supply Chain.*Merchandising Support')) %>% filter(Start == min(Start)) %>%
   mutate(first_supplychain = 1) %>% select(Number, Start, first_supplychain)
 
+
+# additional teams ----
+first_dvo_tech <- team_history %>% group_by(Number) %>% filter(str_detect(Value, 'DVO Technical Support')) %>% filter(Start == min(Start)) %>%
+  mutate(first_dvo_tech = 1) %>% select(Number, Start, first_dvo_tech)
+first_irma_tech <- team_history %>% group_by(Number) %>% filter(str_detect(Value, 'IRMA Technical Support')) %>% filter(Start == min(Start)) %>%
+  mutate(first_irma_tech = 1) %>% select(Number, Start, first_irma_tech)
+first_vip_tech <- team_history %>% group_by(Number) %>% filter(str_detect(Value, 'VIP Technical Support')) %>% filter(Start == min(Start)) %>%
+  mutate(first_vip_tech = 1) %>% select(Number, Start, first_vip_tech)
+
+
+
 # compile all team & analyst passing history to compare team assignments w/ initial analyst assignments ----
 writeLines(paste("Calculating initial ANALYST reponses:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
 all_history <- bind_rows(team_history, assign_history)
@@ -117,7 +128,12 @@ all_history <- all_history %>% group_by(Number) %>% arrange(Start) %>%
 writeLines(paste("Blending team & analyst histories. Calculating initial ANALYST reponses:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
 
 all_history <- all_history %>% left_join(first_L1) %>% left_join(first_L2) %>% left_join(first_L3) %>%
-  left_join(first_aloha) %>% left_join(first_payments) %>% left_join(first_supplychain)
+  left_join(first_aloha) %>% left_join(first_payments) %>% left_join(first_supplychain) %>%
+# additional
+  left_join(first_dvo_tech) %>%
+  left_join(first_irma_tech) %>%
+  left_join(first_vip_tech) 
+
 
 all_history <- all_history %>% group_by(Number) %>% arrange(Start) %>% 
   mutate(L1_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L1 == 1) ~ 1),  # & (Start < Resolved | (!is.na(Start) & is.na(Resolved)))
@@ -125,9 +141,15 @@ all_history <- all_history %>% group_by(Number) %>% arrange(Start) %>%
          L3_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_L3 == 1) ~ 1),
          aloha_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_aloha == 1) ~ 1),
          payments_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_payments == 1) ~ 1),
-         supplychain_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_supplychain == 1) ~ 1)
+         supplychain_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_supplychain == 1) ~ 1),
+         
+         # additional
+         dvo_tech_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_dvo_tech == 1) ~ 1),
+         irma_tech_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_irma_tech == 1) ~ 1),
+         vip_tech_response = case_when(Field == 'assigned_to' & prev_action == 'assignment_group' & lag(first_vip_tech == 1) ~ 1)
          )
 
+writeLines(paste("Partitioning ANALYST reponses into tables:", Sys.time(),"\n Elapsed time:", round(difftime(Sys.time(),start_time, units='secs'),2)))
 first_L1_response <- all_history %>% filter(L1_response == 1) %>% 
   mutate(L1_Time_of_Response_Date = date(Start)) %>%
   select(Number, L1_assignment_time = prev_time, L1_Response_Analyst = Value, L1_Response_Time = response_time, L1_Time_of_Response = Start, L1_Time_of_Response_Date) %>%
@@ -152,6 +174,22 @@ first_supplychain_response <- all_history %>% filter(supplychain_response == 1) 
   mutate(supplychain_Time_of_Response_Date = date(Start)) %>%
   select(Number, supplychain_assignment_time = prev_time, supplychain_Response_Analyst = Value, supplychain_Response_Time = response_time, supplychain_Time_of_Response = Start, supplychain_Time_of_Response_Date) %>%
   mutate(supplychain_assignment_date = date(supplychain_assignment_time))
+
+# additional
+first_dvo_tech_response <- all_history %>% filter(dvo_tech_response == 1) %>%
+  mutate(dvo_tech_Time_of_Response_Date = date(Start)) %>%
+  select(Number, dvo_tech_assignment_time = prev_time, dvo_tech_Response_Analyst = Value, dvo_tech_Response_Time = response_time, dvo_tech_Time_of_Response = Start, dvo_tech_Time_of_Response_Date) %>%
+  mutate(dvo_tech_assignment_date = date(dvo_tech_assignment_time))
+first_irma_tech_response <- all_history %>% filter(irma_tech_response == 1) %>%
+  mutate(irma_tech_Time_of_Response_Date = date(Start)) %>%
+  select(Number, irma_tech_assignment_time = prev_time, irma_tech_Response_Analyst = Value, irma_tech_Response_Time = response_time, irma_tech_Time_of_Response = Start, irma_tech_Time_of_Response_Date) %>%
+  mutate(irma_tech_assignment_date = date(irma_tech_assignment_time))
+first_vip_tech_response <- all_history %>% filter(vip_tech_response == 1) %>%
+  mutate(vip_tech_Time_of_Response_Date = date(Start)) %>%
+  select(Number, vip_tech_assignment_time = prev_time, vip_tech_Response_Analyst = Value, vip_tech_Response_Time = response_time, vip_tech_Time_of_Response = Start, vip_tech_Time_of_Response_Date) %>%
+  mutate(vip_tech_assignment_date = date(vip_tech_assignment_time))
+
+
 
 # get start time of last assigned team for time-to-restore-service by assignment time (instead of creation)
 # (reopened tickets will still have old resolve time, and thus incorrectly show a TTRS. filter out non-opens in workbook)
@@ -180,6 +218,11 @@ out <- OnePOS_Incidents_Import %>%
   left_join(first_L1_response) %>% left_join(first_L2_response) %>% left_join(first_L3_response) %>%
   left_join(first_aloha_response) %>% left_join(first_payments_response) %>%
   left_join(first_supplychain_response) %>%
+  # additional
+  left_join(first_dvo_tech_response) %>%
+  left_join(first_irma_tech_response) %>%
+  left_join(first_vip_tech_response) %>%
+  
   left_join(last_team_start)
 if (nrow(out) == nrow(OnePOS_Incidents_Import)) "data is good" else "not good"  # check for duplicates/problems
 
